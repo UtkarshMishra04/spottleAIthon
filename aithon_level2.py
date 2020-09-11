@@ -5,7 +5,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/source/')
 
 
-import source.classification  as cls
+import source.classification as cls
 
 
 
@@ -25,11 +25,11 @@ def  aithon_level2_api(traingcsv, testcsv):
     # The following dummy code for demonstration.
 
     # Train the model with training data
-    cls.train_a_model(traingcsv)
+    model = cls.train_a_model(traingcsv)
 
     # Test that model with test data
     # And return predicted emotions in a list
-    return cls.test_the_model(testcsv)
+    return cls.test_the_model(testcsv, model)
 
 if __name__=="__main__":
 

@@ -8,52 +8,141 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm 
 
-# TensorFlow and tf.keras
-import tensorflow as tf
-from tensorflow import keras
+# TensorFlow and keras
 from sklearn.model_selection import train_test_split
+from sklearn import preprocessing 
+import keras
+import tensorflow as tf
+from tensorflow.keras import datasets, layers, models
+from keras.layers.normalization import BatchNormalization
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense, Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Dropout, BatchNormalization, LeakyReLU, Activation
+from tensorflow.keras import optimizers
 
 '''
 The following dummy code for demonstration.
 '''
 
-def preprocess_input(trainfile):
+def data(trainfile):
 
-    data = pd.read_csv(trainfile)
+    test=pd.read_csv(trainfile)
 
-    uniqueValues = data['emotion'].unique()
+    train_val_X=test.iloc[:,1:].values
+    train_val_X=np.reshape(train_val_X, (len(train_val_X),48,48,1))
+    train_val_y=test.iloc[:,0].values
 
-    emotion_arr = []
-    image_list = []
+    label_encoder = preprocessing.LabelEncoder()
+    train_val_y=label_encoder.fit_transform(train_val_y)
 
-    rows = len(data.index)
+    train_val_X = train_val_X / 255.0
+    X_train, X_val, y_train, y_val =train_test_split(train_val_X, train_val_y, test_size=0.2,stratify=train_val_y, random_state=42)    #keep this fixed at 0.2
+    
+    return X_train, y_train, X_val, y_val
 
-    for j in tqdm (range (rows), desc="Loading..."): 
-        image_arr = []
-        for i in range(48*48):
-            pixels = data['pixel_'+str(i)]
-            pixel = pixels[j]
-            image_arr.append(pixel)
+def build_net():
 
-        image_list.append(np.array(image_arr).reshape((48,48)))
-
-        emotion = data['emotion'][j]
-        
-        if emotion == uniqueValues[0]:
-            index = 0
-        elif emotion == uniqueValues[1]:
-            index = 1
-        elif emotion == uniqueValues[2]:
-            index = 2
-        else:
-            print("Error Occured")
-            break
-        
-        emotion_arr.append(index)
-
-    return np.array(image_list), np.array(emotion_arr), uniqueValues
-
-
+    net = models.Sequential(name='DCNN')
+    net.add(
+        Conv2D(
+            filters=64,
+            kernel_size=(5,5),
+            input_shape=(48, 48, 1),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_1'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_1'))
+    net.add(
+        Conv2D(
+            filters=64,
+            kernel_size=(5,5),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_2'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_2'))
+    net.add(MaxPooling2D(pool_size=(2,2), name='maxpool2d_1'))
+    net.add(Dropout(0.4, name='dropout_1'))
+    net.add(
+        Conv2D(
+            filters=128,
+            kernel_size=(3,3),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_3'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_3'))
+    net.add(
+        Conv2D(
+            filters=128,
+            kernel_size=(3,3),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_4'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_4'))
+    
+    net.add(MaxPooling2D(pool_size=(2,2), name='maxpool2d_2'))
+    net.add(Dropout(0.3, name='dropout_2'))
+    net.add(
+        Conv2D(
+            filters=256,
+            kernel_size=(3,3),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_5'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_5'))
+    net.add(
+        Conv2D(
+            filters=256,
+            kernel_size=(3,3),
+            activation='elu',
+            padding='same',
+            kernel_initializer='he_normal',
+            name='conv2d_6'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_6'))
+    net.add(MaxPooling2D(pool_size=(2,2), name='maxpool2d_3'))
+    net.add(Dropout(0.6, name='dropout_3'))
+    net.add(Flatten(name='flatten'))   
+    net.add(
+        Dense(
+            128,
+            activation='elu',
+            kernel_initializer='he_normal',
+            name='dense_1'
+        )
+    )
+    net.add(BatchNormalization(name='batchnorm_7')) 
+    net.add(Dropout(0.5, name='dropout_4'))
+    net.add(
+        Dense(
+            3,
+            activation='softmax',
+            name='out_layer'
+        )
+    )
+    net.compile(
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        optimizer=optimizers.Adam(0.001),
+        metrics=['accuracy']
+    )
+    net.summary()
+    return net
 
 def train_a_model(trainfile):
     '''
@@ -61,39 +150,50 @@ def train_a_model(trainfile):
     :return:
     '''
 
-    image, label, class_names = preprocess_input(trainfile)
+    X_train, y_train, X_val, y_val = data(trainfile)
+    model=build_net()
 
-    train_images, test_images, train_labels, test_labels = train_test_split(image, label, test_size=0.2, random_state=42)
+    train_datagen = ImageDataGenerator(
+        rotation_range=15,
+        width_shift_range=0.15,
+        height_shift_range=0.15,
+        shear_range=0.15,
+        zoom_range=0.15,
+        horizontal_flip=True)   
 
-    print(np.array(train_images).shape,np.array(train_labels).shape)
+    model.fit(train_datagen.flow(X_train, y_train, batch_size=32),
+                  epochs=100,
+                  verbose=2,
+                  steps_per_epoch=len(X_train)/32,
+                  validation_data=(X_val, y_val))
 
-    model = keras.Sequential([
-        keras.layers.Flatten(input_shape=(48, 48)),
-        keras.layers.Dense(512, activation='relu'),
-        keras.layers.Dense(512, activation='relu'),
-        keras.layers.Dense(256, activation='relu'),
-        keras.layers.Dense(128, activation='relu'),
-        keras.layers.Dense(3)
-    ])
+    score, acc = model.evaluate(X_val, y_val, verbose=0)
 
-    model.compile(optimizer='adam',
-              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+    print('Val accuracy:', acc)
 
-    model.fit(train_images, train_labels, epochs=300)
-
-    test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
-
-    print('\nTest accuracy:', test_acc)
+    model.save('./trained_model') 
 
     return model
 
 
-def test_the_model(testfile):
+def test_the_model(testfile, model):
     '''
 
     :param testfile:
     :return:  a list of predicted values in same order of
     '''
+    test=pd.read_csv(testfile)
 
-    return "Not Implemented Yet"
+    X_test=test.iloc[:,1:].values
+    X_test=np.reshape(X_test, (len(X_test),48,48,1))
+    y_test=test.iloc[:,0].values
+
+    y_test=label_encoder.transform(y_test)
+
+    X_test = X_test / 255.0
+
+    test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
+
+    print('test accuracy:', test_acc)
+
+    return test_acc
