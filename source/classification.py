@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 import random
 import math
-from PIL import Image
 import matplotlib.pyplot as plt
-from tqdm import tqdm 
 
 # TensorFlow and keras
 from sklearn.model_selection import train_test_split
@@ -21,10 +19,6 @@ from tensorflow.keras.layers import Flatten, Dense, Conv2D, MaxPooling2D
 from tensorflow.keras.layers import Dropout, BatchNormalization, LeakyReLU, Activation
 from tensorflow.keras import optimizers
 
-'''
-The following dummy code for demonstration.
-'''
-
 def data(trainfile):
 
     test=pd.read_csv(trainfile)
@@ -33,8 +27,16 @@ def data(trainfile):
     train_val_X=np.reshape(train_val_X, (len(train_val_X),48,48,1))
     train_val_y=test.iloc[:,0].values
 
-    label_encoder = preprocessing.LabelEncoder()
-    train_val_y=label_encoder.fit_transform(train_val_y)
+    for i in range(len(train_val_y)):
+        if train_val_y[i] == "Fear":
+            train_val_y[i] = 0
+        elif train_val_y[i] == "Happy":
+            train_val_y[i] = 1
+        elif train_val_y[i] == "Sad":
+            train_val_y[i] = 2
+
+    #label_encoder = preprocessing.LabelEncoder()
+    #train_val_y=label_encoder.fit_transform(train_val_y)
 
     train_val_X = train_val_X / 255.0
     X_train, X_val, y_train, y_val =train_test_split(train_val_X, train_val_y, test_size=0.2,stratify=train_val_y, random_state=42)    #keep this fixed at 0.2
@@ -43,7 +45,7 @@ def data(trainfile):
 
 def build_net():
 
-    net = models.Sequential(name='DCNN')
+    net = models.Sequential(name='BlazeNN')
     net.add(
         Conv2D(
             filters=64,
@@ -169,8 +171,6 @@ def train_a_model(trainfile):
 
     score, acc = model.evaluate(X_val, y_val, verbose=0)
 
-    print('Val accuracy:', acc)
-
     model.save('./trained_model') 
 
     return model
@@ -182,18 +182,24 @@ def test_the_model(testfile, model):
     :param testfile:
     :return:  a list of predicted values in same order of
     '''
+
     test=pd.read_csv(testfile)
 
-    X_test=test.iloc[:,1:].values
+    X_test=test.iloc[:,0:].values
     X_test=np.reshape(X_test, (len(X_test),48,48,1))
-    y_test=test.iloc[:,0].values
-
-    y_test=label_encoder.transform(y_test)
 
     X_test = X_test / 255.0
 
-    test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
+    y_test = model.predict(X_test)
 
-    print('test accuracy:', test_acc)
+    pred_emotions = []
 
-    return test_acc
+    for value in y_test:
+        if value == 0:
+            pred_emotions.append("Fear")
+        elif value == 1:
+            pred_emotions.append("Happy")
+        elif value == 2:
+            pred_emotions.append("Sad")
+
+    return pred_emotions
