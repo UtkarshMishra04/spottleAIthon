@@ -33,4 +33,5 @@ def  aithon_level2_api(traingcsv, testcsv):
 
 if __name__=="__main__":
 
-	aithon_level2_api('./aithon2020_level2_traning.csv','./aithon2020_level2_traning.csv')
+    pred_labels = aithon_level2_api('./aithon2020_level2_traning.csv','./aithon2020_level2_traning.csv')
+    #print("Predicted Labels",pred_labels)

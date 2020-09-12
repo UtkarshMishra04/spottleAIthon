@@ -18,6 +18,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Flatten, Dense, Conv2D, MaxPooling2D
 from tensorflow.keras.layers import Dropout, BatchNormalization, LeakyReLU, Activation
 from tensorflow.keras import optimizers
+from keras.utils import np_utils
 
 def data(trainfile):
 
@@ -25,22 +26,32 @@ def data(trainfile):
 
     train_val_X=test.iloc[:,1:].values
     train_val_X=np.reshape(train_val_X, (len(train_val_X),48,48,1))
-    train_val_y=test.iloc[:,0].values
+    train_val_y_text=test.iloc[:,0].values
 
-    for i in range(len(train_val_y)):
-        if train_val_y[i] == "Fear":
-            train_val_y[i] = 0
-        elif train_val_y[i] == "Happy":
-            train_val_y[i] = 1
-        elif train_val_y[i] == "Sad":
-            train_val_y[i] = 2
+    train_val_y = []
+    
+    for i in range(len(train_val_y_text)):
+        if train_val_y_text[i] == "Fear":
+            train_val_y.append(0)
+        elif train_val_y_text[i] == "Happy":
+            train_val_y.append(1)
+        elif train_val_y_text[i] == "Sad":
+            train_val_y.append(2)
+   
+    #train_val_y = np_utils.to_categorical(train_val_y)
 
-    #label_encoder = preprocessing.LabelEncoder()
-    #train_val_y=label_encoder.fit_transform(train_val_y)
+    #train_val_y1 = train_val_y
+
+    label_encoder = preprocessing.LabelEncoder()
+    train_val_y=label_encoder.fit_transform(train_val_y)
+
+    #print(train_val_y[2], train_val_y - train_val_y1)
 
     train_val_X = train_val_X / 255.0
     X_train, X_val, y_train, y_val =train_test_split(train_val_X, train_val_y, test_size=0.2,stratify=train_val_y, random_state=42)    #keep this fixed at 0.2
     
+    #print(abc)
+
     return X_train, y_train, X_val, y_val
 
 def build_net():
@@ -195,11 +206,11 @@ def test_the_model(testfile, model):
     pred_emotions = []
 
     for value in y_test:
-        if value == 0:
+        if np.argmax(value) == 0:
             pred_emotions.append("Fear")
-        elif value == 1:
+        elif np.argmax(value) == 1:
             pred_emotions.append("Happy")
-        elif value == 2:
+        elif np.argmax(value) == 2:
             pred_emotions.append("Sad")
 
     return pred_emotions
